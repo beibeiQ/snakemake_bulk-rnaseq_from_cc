@@ -1,0 +1,19 @@
+name: rnaseq-deseq2
+channels:
+  - bioconda
+  - conda-forge
+  - defaults
+dependencies:
+  - r-base=4.3.3
+  - bioconductor-deseq2=1.42.0
+  - bioconductor-tximport=1.30.0
+  - bioconductor-tximeta=1.20.0
+  - r-ggplot2=3.5.0
+  - r-ggrepel=0.9.5
+  - r-pheatmap=1.0.12
+  - r-rcolorbrewer=1.1_3
+  - r-dplyr=1.1.4
+  - r-readr=2.1.5
+  - r-stringr=1.5.1
+  - bioconductor-annotationdbi=1.64.0
+  - bioconductor-org.hs.eg.db=3.18.0   # 人类，鼠类换成 org.Mm.eg.db
