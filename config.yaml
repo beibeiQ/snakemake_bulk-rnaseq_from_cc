@@ -1,0 +1,50 @@
+# ============================================================
+# Bulk RNA-seq Pipeline Configuration
+# ============================================================
+
+# ── 样本信息 ──────────────────────────────────────────────
+samples_file: "samples.tsv"       # 样本 metadata 文件路径
+fastq_dir: "data/raw"             # 原始 fastq 文件目录
+
+# ── 参考基因组 ────────────────────────────────────────────
+genome:
+  species: "human"                # human / mouse / other
+  genome_fasta: "refs/genome.fa"          # 基因组 fasta（用于构建 decoy-aware 索引）
+  transcriptome_fasta: "refs/transcriptome.fa"  # 转录本 fasta
+  gtf: "refs/annotation.gtf"             # GTF 注释文件
+  salmon_index: "refs/salmon_index"       # Salmon 索引输出目录
+
+# ── fastp 参数 ────────────────────────────────────────────
+fastp:
+  min_length: 36
+  qualified_quality_phred: 20
+  unqualified_percent_limit: 40
+  extra: ""                       # 额外参数，如 "--detect_adapter_for_pe"
+
+# ── Salmon 参数 ───────────────────────────────────────────
+salmon:
+  lib_type: "A"                   # A = 自动检测文库类型（推荐）
+  extra: "--gcBias --seqBias --validateMappings"
+
+# ── DESeq2 参数 ───────────────────────────────────────────
+deseq2:
+  # 差异分析比较组，格式: [处理组, 对照组]
+  # 支持多个比较组
+  contrasts:
+    - ["treatment", "control"]
+    # - ["groupA", "groupB"]
+
+  # 差异基因筛选阈值
+  padj_cutoff: 0.05
+  log2fc_cutoff: 1.0
+
+  # tximport 计数类型: "lengthScaledTPM" / "scaledTPM" / "counts"
+  count_type: "lengthScaledTPM"
+
+# ── 线程数 ────────────────────────────────────────────────
+threads:
+  fastqc: 4
+  fastp: 8
+  salmon_index: 8
+  salmon_quant: 8
+  multiqc: 1
