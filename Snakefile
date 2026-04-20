@@ -142,24 +142,30 @@ rule fastqc_raw:
     threads: config["threads"]["fastqc"]
     conda: "envs/qc.yaml"
     log: "logs/fastqc/raw/{sample}.log"
-    shell:
-        """
-        fastqc --threads {threads} --outdir results/fastqc/raw \
-            {input.r1} {input.r2} 2> {log}
-        # 统一重命名为 R1/R2（兼容不同命名格式）
-        for f in results/fastqc/raw/{wildcards.sample}_*_fastqc.html; do
-            base=$(basename "$f" _fastqc.html)
-            if echo "$base" | grep -qE '_(R1|1|f|F)$'; then
-                mv "$f" results/fastqc/raw/{wildcards.sample}_R1_fastqc.html 2>/dev/null || true
-                mv "results/fastqc/raw/${{base}}_fastqc.zip" \
-                   results/fastqc/raw/{wildcards.sample}_R1_fastqc.zip 2>/dev/null || true
-            elif echo "$base" | grep -qE '_(R2|2|r|R)$'; then
-                mv "$f" results/fastqc/raw/{wildcards.sample}_R2_fastqc.html 2>/dev/null || true
-                mv "results/fastqc/raw/${{base}}_fastqc.zip" \
-                   results/fastqc/raw/{wildcards.sample}_R2_fastqc.zip 2>/dev/null || true
-            fi
-        done
-        """
+    run:
+        import subprocess, glob, re, os
+        os.makedirs("results/fastqc/raw", exist_ok=True)
+        with open(log[0], "w") as logf:
+            subprocess.run(
+                ["fastqc", "--threads", str(threads),
+                 "--outdir", "results/fastqc/raw",
+                 input.r1, input.r2],
+                stderr=logf, check=True
+            )
+        # FastQC 输出文件名基于输入文件 stem，精确重命名为 _R1/_R2
+        for src_path, dst_html, dst_zip in [
+            (input.r1, output.html_r1, output.zip_r1),
+            (input.r2, output.html_r2, output.zip_r2),
+        ]:
+            stem = Path(src_path).name
+            for ext in (".fastq.gz", ".fq.gz", ".fastq", ".fq"):
+                stem = stem.replace(ext, "")
+            src_html = f"results/fastqc/raw/{stem}_fastqc.html"
+            src_zip  = f"results/fastqc/raw/{stem}_fastqc.zip"
+            if src_html != dst_html:
+                os.rename(src_html, dst_html)
+            if src_zip != dst_zip:
+                os.rename(src_zip, dst_zip)
 
 
 # ════════════════════════════════════════════════════════════
@@ -326,11 +332,13 @@ rule deseq2:
     conda: "envs/deseq2.yaml"
     log: "logs/deseq2.log"
     params:
-        salmon_dir  = "results/salmon",
-        outdir      = "results/deseq2",
-        contrasts   = config["deseq2"]["contrasts"],
-        padj_cutoff = config["deseq2"]["padj_cutoff"],
-        lfc_cutoff  = config["deseq2"]["log2fc_cutoff"],
-        count_type  = config["deseq2"]["count_type"]
+        salmon_dir           = "results/salmon",
+        outdir               = "results/deseq2",
+        contrasts            = config["deseq2"]["contrasts"],
+        padj_cutoff          = config["deseq2"]["padj_cutoff"],
+        lfc_cutoff           = config["deseq2"]["log2fc_cutoff"],
+        count_type           = config["deseq2"]["count_type"],
+        use_tissue_covariate = config["deseq2"]["use_tissue_covariate"],
+        split_by_tissue      = config["deseq2"]["split_by_tissue"]
     script:
         "scripts/deseq2_analysis.R"
