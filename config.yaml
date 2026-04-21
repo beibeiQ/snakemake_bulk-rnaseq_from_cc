@@ -4,11 +4,11 @@
 
 # ── 样本信息 ──────────────────────────────────────────────
 samples_file: "samples.tsv"       # 样本 metadata 文件路径
-fastq_dir: "data/raw"             # 原始 fastq 文件目录
+fastq_dir: "/data2/qinbeibei/02.data/PRJNA1061050"             # 原始 fastq 文件目录
 
 # ── 参考基因组 ────────────────────────────────────────────
 genome:
-  species: "human"                # human / mouse / other
+  species: "Grass Crap"                # human / mouse / other
   genome_fasta: "refs/genome.fa"          # 基因组 fasta（用于构建 decoy-aware 索引）
   transcriptome_fasta: "refs/transcriptome.fa"  # 转录本 fasta
   gtf: "refs/annotation.gtf"             # GTF 注释文件
@@ -29,10 +29,15 @@ salmon:
 # ── DESeq2 参数 ───────────────────────────────────────────
 deseq2:
   # 差异分析比较组，格式: [处理组, 对照组]
-  # 支持多个比较组
   contrasts:
     - ["treatment", "control"]
-    # - ["groupA", "groupB"]
+
+  # 是否包含组织作为协变量（多组织实验时设为 true）
+  # design formula: true → ~ tissue + condition, false → ~ condition
+  use_tissue_covariate: false
+
+  # 是否按组织分组分别输出结果（true = 每个组织单独一套 DEG 结果）
+  split_by_tissue: true
 
   # 差异基因筛选阈值
   padj_cutoff: 0.05
