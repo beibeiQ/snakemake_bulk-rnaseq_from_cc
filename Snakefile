@@ -51,6 +51,16 @@ def detect_samples(fastq_dir):
 SAMPLES = detect_samples(FASTQ_DIR)
 SAMPLE_NAMES = list(SAMPLES.keys())
 
+# ── 辅助函数 ──────────────────────────────────────────────
+def get_r1(wildcards):
+    return SAMPLES[wildcards.sample]["R1"]
+
+def get_r2(wildcards):
+    return SAMPLES[wildcards.sample]["R2"]
+
+# 获取所有 FASTQ 文件的完整路径列表
+ALL_FASTQS = [path for sample_info in SAMPLES.values() for path in (sample_info["R1"], sample_info["R2"])]
+
 # ── 读取 metadata ─────────────────────────────────────────
 metadata = pd.read_csv(config["samples_file"], sep="\t", index_col=0)
 
@@ -89,6 +99,59 @@ rule all:
         expand("results/deseq2/{tissue}/{contrast}_DEG_results.csv",
                tissue=TISSUES,
                contrast=["_vs_".join(c) for c in config["deseq2"]["contrasts"]]),
+
+# ════════════════════════════════════════════════════════════
+# 0. 原始数据完整性校验 (MD5 或 gzip -t)
+# ════════════════════════════════════════════════════════════
+rule check_fastq_integrity:
+    input:
+        fastqs = ALL_FASTQS
+    output:
+        flag = "results/qc/integrity_passed.flag"
+    log:
+        "logs/check_fastq_integrity.log"
+    threads: 8 # 可以根据本地 CPU 核心数进行调整，加速多文件的并行检测
+    run:
+        import subprocess
+        import os
+        from concurrent.futures import ThreadPoolExecutor
+
+        corrupt_dir = "results/corrupted_files"
+        os.makedirs(corrupt_dir, exist_ok=True)
+        corrupted_list = []
+
+        # 定义并行检测函数
+        def check_gz(f):
+            if f.endswith(".gz"):
+                # 使用 gzip -t 快速检测压缩包尾部和 CRC
+                res = subprocess.run(["gzip", "-t", f], capture_output=True)
+                return f, res.returncode
+            return f, 0 # 非 gz 文件默认跳过压缩校验
+
+        with open(log[0], "w") as log_file:
+            log_file.write("Starting FastQ integrity check...\n")
+            
+            # 使用多线程加速检测
+            with ThreadPoolExecutor(max_workers=threads) as pool:
+                results = pool.map(check_gz, input.fastqs)
+                for f, retcode in results:
+                    if retcode != 0:
+                        corrupted_list.append(f)
+                        bad_flag = os.path.join(corrupt_dir, os.path.basename(f) + ".corrupted")
+                        with open(bad_flag, "w") as err:
+                            err.write(f"File corrupted or truncated: {f}")
+                        log_file.write(f"ERROR: {f} is corrupted.\n")
+
+            if corrupted_list:
+                err_msg = f"检测到损坏的 FASTQ 文件！已在 {corrupt_dir} 创建标记。流程终止。"
+                log_file.write("\n" + err_msg + "\n")
+                raise ValueError(err_msg)
+
+        # 全部通过后，生成 flag 文件，解锁下游任务
+        with open(output.flag, "w") as f:
+            f.write("All files passed gzip integrity check.\n")
+
+
 
 
 # ════════════════════════════════════════════════════════════
@@ -137,7 +200,8 @@ rule salmon_index:
 rule fastqc_raw:
     input:
         r1 = get_r1,
-        r2 = get_r2
+        r2 = get_r2,
+        integrity = "results/qc/integrity_passed.flag"
     output:
         html_r1 = "results/fastqc/raw/{sample}_R1_fastqc.html",
         html_r2 = "results/fastqc/raw/{sample}_R2_fastqc.html",
@@ -198,7 +262,8 @@ rule multiqc_raw:
 rule fastp:
     input:
         r1 = get_r1,
-        r2 = get_r2
+        r2 = get_r2,
+        integrity = "results/qc/integrity_passed.flag"
     output:
         r1      = "results/trimmed/{sample}_R1.fastq.gz",
         r2      = "results/trimmed/{sample}_R2.fastq.gz",
