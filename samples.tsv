@@ -1,7 +1,25 @@
-sample	condition	replicate
-ctrl_1	control	1
-ctrl_2	control	2
-ctrl_3	control	3
-treat_1	treatment	1
-treat_2	treatment	2
-treat_3	treatment	3
+sample	condition	tissue	replicate
+SRR27485539	control	kidney	1
+SRR27485540	control	head kidney	1
+SRR27485541	control	head kidney	2
+SRR27485542	control	head kidney	3
+SRR27485543	control	spleen	1
+SRR27485544	control	spleen	2
+SRR27485545	control	spleen	3
+SRR27485546	treatment	kidney	1
+SRR27485547	treatment	kidney	2
+SRR27485548	treatment	kidney	3
+SRR27485549	treatment	head kidney	1
+SRR27485550	control	liver	1
+SRR27485551	treatment	head kidney	2
+SRR27485552	treatment	head kidney	3
+SRR27485553	treatment	spleen	1
+SRR27485554	treatment	spleen	2
+SRR27485555	treatment	spleen	3
+SRR27485556	treatment	liver	1
+SRR27485557	treatment	liver	2
+SRR27485558	treatment	liver	3
+SRR27485559	control	kidney	2
+SRR27485560	control	kidney	3
+SRR27485561	control	liver	2
+SRR27485562	control	liver	3
