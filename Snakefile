@@ -54,6 +54,9 @@ SAMPLE_NAMES = list(SAMPLES.keys())
 # ── 读取 metadata ─────────────────────────────────────────
 metadata = pd.read_csv(config["samples_file"], sep="\t", index_col=0)
 
+# 获取所有唯一的 tissue 名称
+TISSUES = metadata["tissue"].dropna().unique().tolist()
+
 # 验证 metadata 中的样本与检测到的样本一致
 missing = set(SAMPLE_NAMES) - set(metadata.index)
 if missing:
@@ -83,7 +86,8 @@ rule all:
         expand("results/salmon/{sample}/quant.sf", sample=SAMPLE_NAMES),
         # DESeq2 结果
         "results/deseq2/pca_plot.pdf",
-        expand("results/deseq2/{contrast}_DEG_results.csv",
+        expand("results/deseq2/{tissue}/{contrast}_DEG_results.csv",
+               tissue=TISSUES,
                contrast=["_vs_".join(c) for c in config["deseq2"]["contrasts"]]),
 
 
@@ -327,7 +331,8 @@ rule deseq2:
         gtf         = GTF
     output:
         pca     = "results/deseq2/pca_plot.pdf",
-        results = expand("results/deseq2/{contrast}_DEG_results.csv",
+        results = expand("results/deseq2/{tissue}/{contrast}_DEG_results.csv",
+                         tissue=TISSUES, 
                          contrast=["_vs_".join(c) for c in config["deseq2"]["contrasts"]])
     conda: "envs/deseq2.yaml"
     log: "logs/deseq2.log"
